@@ -89,7 +89,3 @@ cmake --build . --config Release
 ## License
 
 MIT License - See LICENSE file for details
-
-## Author
-
-[Your Name] - Senior C++ Developer 
