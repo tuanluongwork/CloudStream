@@ -25,7 +25,7 @@ A high-performance C++ application for real-time point cloud streaming, processi
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Data Source   │────▶│    Network      │────▶│   Visualizer    │
+│   Data Source   │---->│    Network      │---->│   Visualizer    │
 │  (Server/File)  │     │    Module       │     │   (Qt/OpenGL)   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
          │                       │                        │
