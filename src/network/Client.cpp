@@ -3,6 +3,9 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
+#include <cstring>
+#include <queue>
+#include <map>
 
 namespace CloudStream {
 

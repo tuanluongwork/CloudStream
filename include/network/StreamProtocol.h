@@ -129,11 +129,12 @@ public:
     std::vector<uint8_t> buildStatusUpdate(const Protocol::StatusUpdate& status);
     std::vector<uint8_t> buildError(uint32_t error_code, const std::string& message);
     
-private:
-    uint32_t sequence_number_{0};
-    
+    // Public access to createMessage for custom messages
     std::vector<uint8_t> createMessage(Protocol::MessageType type, 
                                       const std::vector<uint8_t>& payload);
+    
+private:
+    uint32_t sequence_number_{0};
 };
 
 /**

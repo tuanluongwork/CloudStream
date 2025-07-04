@@ -3,6 +3,7 @@
 #include "utils/Timer.h"
 #include <QFile>
 #include <QTextStream>
+#include <QTime>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 

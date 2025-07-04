@@ -117,4 +117,32 @@ endforeach()
 
 # Installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
-install(DIRECTORY resources/shaders DESTINATION share/${PROJECT_NAME}) 
+install(DIRECTORY resources/shaders DESTINATION share/${PROJECT_NAME})
+
+# Testing
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    find_package(GTest QUIET)
+    
+    if(GTest_FOUND)
+        add_executable(CloudStreamTests
+            tests/test_point_cloud.cpp
+        )
+        
+        target_link_libraries(CloudStreamTests
+            GTest::GTest
+            GTest::Main
+            ${Boost_LIBRARIES}
+            Threads::Threads
+        )
+        
+        target_include_directories(CloudStreamTests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+        )
+        
+        add_test(NAME CloudStreamTests COMMAND CloudStreamTests)
+    else()
+        message(WARNING "Google Test not found. Unit tests will not be built.")
+    endif()
+endif() 

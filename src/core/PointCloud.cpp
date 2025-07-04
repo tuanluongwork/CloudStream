@@ -194,6 +194,73 @@ void PointCloud::downsample(float voxel_size) {
     bbox_dirty_ = true;
 }
 
+void PointCloud::statisticalOutlierRemoval(int k_neighbors, float std_dev_mul_thresh) {
+    if (points_.size() < static_cast<size_t>(k_neighbors)) return;
+    
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // For each point, compute mean distance to k nearest neighbors
+    std::vector<float> mean_distances(points_.size());
+    
+    // Simple brute force approach for neighbor search
+    // In production, use KD-tree or octree for better performance
+    std::for_each(std::execution::par_unseq, 
+                  points_.begin(), points_.end(),
+                  [this, k_neighbors, &mean_distances](const Point& point) {
+        size_t idx = &point - &points_[0];
+        std::vector<float> distances;
+        distances.reserve(points_.size() - 1);
+        
+        // Compute distances to all other points
+        for (size_t j = 0; j < points_.size(); ++j) {
+            if (j != idx) {
+                float dist = glm::distance(point.position, points_[j].position);
+                distances.push_back(dist);
+            }
+        }
+        
+        // Sort and take k nearest
+        std::partial_sort(distances.begin(), 
+                         distances.begin() + std::min(k_neighbors, static_cast<int>(distances.size())),
+                         distances.end());
+        
+        // Compute mean distance
+        float sum = 0.0f;
+        int count = std::min(k_neighbors, static_cast<int>(distances.size()));
+        for (int i = 0; i < count; ++i) {
+            sum += distances[i];
+        }
+        mean_distances[idx] = sum / count;
+    });
+    
+    // Compute global mean and standard deviation
+    float global_mean = std::accumulate(mean_distances.begin(), mean_distances.end(), 0.0f) 
+                       / mean_distances.size();
+    
+    float variance = 0.0f;
+    for (float dist : mean_distances) {
+        float diff = dist - global_mean;
+        variance += diff * diff;
+    }
+    variance /= mean_distances.size();
+    float std_dev = std::sqrt(variance);
+    
+    // Filter points based on threshold
+    float threshold = global_mean + std_dev_mul_thresh * std_dev;
+    
+    std::vector<Point> filtered;
+    filtered.reserve(points_.size());
+    
+    for (size_t i = 0; i < points_.size(); ++i) {
+        if (mean_distances[i] <= threshold) {
+            filtered.push_back(points_[i]);
+        }
+    }
+    
+    points_ = std::move(filtered);
+    bbox_dirty_ = true;
+}
+
 std::vector<uint8_t> PointCloud::serialize() const {
     std::lock_guard<std::mutex> lock(mutex_);
     

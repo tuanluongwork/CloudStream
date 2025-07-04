@@ -5,6 +5,7 @@
 #include <QMouseEvent>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <vector>
 
 namespace CloudStream {
 
@@ -269,22 +270,119 @@ void GLWidget::updateCamera() {
 
 void GLWidget::drawAxes() {
     // Simple axes drawing using lines
-    // In a full implementation, this would use a separate shader program
+    if (!renderer_ || !renderer_->getShaderProgram()) return;
     
     glLineWidth(2.0f);
     
-    // Draw using immediate mode simulation or a simple line renderer
-    // For now, this is a placeholder
+    // Create axis vertices
+    const float axis_length = 5.0f;
+    struct AxisVertex {
+        glm::vec3 position;
+        glm::vec4 color;
+    };
+    
+    std::vector<AxisVertex> axes = {
+        // X axis (red)
+        {{0, 0, 0}, {1, 0, 0, 1}},
+        {{axis_length, 0, 0}, {1, 0, 0, 1}},
+        // Y axis (green)
+        {{0, 0, 0}, {0, 1, 0, 1}},
+        {{0, axis_length, 0}, {0, 1, 0, 1}},
+        // Z axis (blue)
+        {{0, 0, 0}, {0, 0, 1, 1}},
+        {{0, 0, axis_length}, {0, 0, 1, 1}}
+    };
+    
+    // Create temporary VAO and VBO for axes
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, axes.size() * sizeof(AxisVertex), axes.data(), GL_STATIC_DRAW);
+    
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(AxisVertex), (void*)0);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(AxisVertex), (void*)offsetof(AxisVertex, color));
+    
+    // Use renderer's shader with custom uniforms
+    auto shader = renderer_->getShaderProgram();
+    shader->bind();
+    shader->setUniformValue("model", QMatrix4x4());
+    shader->setUniformValue("view", getViewMatrix());
+    shader->setUniformValue("projection", getProjectionMatrix());
+    
+    glDrawArrays(GL_LINES, 0, 6);
+    
+    shader->release();
+    
+    // Cleanup
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
 }
 
 void GLWidget::drawGrid() {
     // Simple grid drawing
-    // In a full implementation, this would use a separate shader program
+    if (!renderer_ || !renderer_->getShaderProgram()) return;
     
     glLineWidth(1.0f);
     
-    // Draw grid lines
-    // For now, this is a placeholder
+    const float grid_size = 20.0f;
+    const int grid_lines = 21;
+    const float step = grid_size / (grid_lines - 1);
+    
+    std::vector<glm::vec3> grid_vertices;
+    glm::vec4 grid_color(0.3f, 0.3f, 0.3f, 0.5f);
+    
+    // Generate grid lines along X
+    for (int i = 0; i < grid_lines; ++i) {
+        float pos = -grid_size / 2 + i * step;
+        grid_vertices.push_back({pos, 0, -grid_size / 2});
+        grid_vertices.push_back({pos, 0, grid_size / 2});
+    }
+    
+    // Generate grid lines along Z
+    for (int i = 0; i < grid_lines; ++i) {
+        float pos = -grid_size / 2 + i * step;
+        grid_vertices.push_back({-grid_size / 2, 0, pos});
+        grid_vertices.push_back({grid_size / 2, 0, pos});
+    }
+    
+    // Create temporary VAO and VBO for grid
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, grid_vertices.size() * sizeof(glm::vec3), grid_vertices.data(), GL_STATIC_DRAW);
+    
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    
+    // Use renderer's shader
+    auto shader = renderer_->getShaderProgram();
+    shader->bind();
+    shader->setUniformValue("model", QMatrix4x4());
+    shader->setUniformValue("view", getViewMatrix());
+    shader->setUniformValue("projection", getProjectionMatrix());
+    
+    // Set uniform color for all grid lines
+    glVertexAttrib4f(2, grid_color.r, grid_color.g, grid_color.b, grid_color.a);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(grid_vertices.size()));
+    
+    glDisable(GL_BLEND);
+    shader->release();
+    
+    // Cleanup
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
 }
 
 QMatrix4x4 GLWidget::getViewMatrix() const {
